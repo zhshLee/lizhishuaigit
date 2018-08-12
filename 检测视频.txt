@@ -1,0 +1,142 @@
+import cv2
+import numpy as np
+import os
+from functools import reduce
+
+class Tracker(object):
+    '''
+    追踪者模块,用于追踪指定目标
+    '''
+    def __init__(self,tracker_type = "BOOSTING",draw_coord = True):
+        '''
+        初始化追踪器种类
+        '''
+        #获得opencv版本
+        (major_ver, minor_ver, subminor_ver) = (cv2.__version__).split('.')
+        self.tracker_types = ['BOOSTING', 'MIL','KCF', 'TLD', 'MEDIANFLOW', 'GOTURN']
+        self.tracker_type = tracker_type
+        self.isWorking = False
+        self.draw_coord = draw_coord
+        #构造追踪器
+        if int(minor_ver) < 3:
+            self.tracker = cv2.Tracker_create(tracker_type)
+        else:
+            if tracker_type == 'BOOSTING':
+                self.tracker = cv2.TrackerBoosting_create()
+            if tracker_type == 'MIL':
+                self.tracker = cv2.TrackerMIL_create()
+            if tracker_type == 'KCF':
+                self.tracker = cv2.TrackerKCF_create()
+            if tracker_type == 'TLD':
+                self.tracker = cv2.TrackerTLD_create()
+            if tracker_type == 'MEDIANFLOW':
+                self.tracker = cv2.TrackerMedianFlow_create()
+            if tracker_type == 'GOTURN':
+                self.tracker = cv2.TrackerGOTURN_create()
+    def initWorking(self,frame,box):
+        '''
+        追踪器工作初始化
+        frame:初始化追踪画面
+        box:追踪的区域
+        '''
+        if not self.tracker:
+            raise Exception("追踪器未初始化")
+        status = self.tracker.init(frame,box)
+        if not status:
+            raise Exception("追踪器工作初始化失败")
+        self.coord = box
+        self.isWorking = True
+
+    def track(self,frame):
+        '''
+        开启追踪
+        '''
+        message = None
+        if self.isWorking:
+            status,self.coord = self.tracker.update(frame)
+            if True:
+                message = {"coord":[((int(self.coord[0]), int(self.coord[1])),(int(self.coord[0] + self.coord[2]), int(self.coord[1] + self.coord[3])))]}
+                if self.draw_coord:
+                    p1 = (int(self.coord[0]), int(self.coord[1]))
+                    p2 = (int(self.coord[0] + self.coord[2]), int(self.coord[1] + self.coord[3]))
+                    cv2.rectangle(frame, p1, p2, (255,0,0), 2, 1)
+                    message['msg'] = "is tracking"
+        return frame,message
+
+
+# 遍历指定目录，显示目录下的所有文件名
+def eachFile(filepath):
+    pathDir = os.listdir(filepath)
+    out = []
+    for allDir in pathDir:
+        child = os.path.join('%s%s' % (filepath, allDir))
+        out.append(child) # .decode('gbk')是解决中文显示乱码问题
+    return out
+
+
+def str2float(s):
+    def char2num(s):
+        return {'0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9}[s]
+    if s.find('.') == -1:
+        return int(s)
+    else:
+        s = s.split('.')
+        n = s[0] + s[1]  # 连接两个字符串,整体转换
+        return reduce(lambda x, y: x * 10 + y, map(char2num, n)) / (10 ** len(s[1]))
+
+
+def paint(mat,x1,y1,x2,y2):
+    cv2.rectangle(mat,(int(x1),int(y1)),(int(x1)+int(x2),int(y1)+int(y2)),(0,0,255),2)
+
+# 读取groundtruth第一帧
+gths = "groundtruth"
+dataDir = 'C:\\Users\\LZS\\Desktop\\vot2016\\'
+dataType = eachFile(dataDir)
+# dataType = dataDir+'/birds1'
+for gthdir in dataType:
+    a = ['BOOSTING', 'MIL', 'KCF', 'TLD', 'MEDIANFLOW', 'GOTURN']
+    tracker = Tracker(tracker_type='MIL')
+    txtFile = '{}/{}.txt'.format(gthdir, gths)
+    f = open(txtFile,'r')  # 返回一个文件对象
+    sourceInLines = f.readlines()  # 按行读出文件内容
+    f.close()
+    new = []  # 定义一个空列表，用来存储结果
+    spl = ','.join(sourceInLines[0].split(',')).strip('\n').split(',')
+    for x in spl:
+        x = str2float(x)
+        new.append(x)
+
+    x_mins = np.min((new[0], new[2], new[4], new[6]))
+    y_mins = np.min((new[1], new[3], new[5], new[7]))
+    x_maxs = np.max((new[0], new[2], new[4], new[6]))
+    y_maxs = np.max((new[1], new[3], new[5], new[7]))
+
+    cl,dl = [int(x_mins),int(y_mins)],[int(x_maxs),int(y_maxs)]
+    id = 2
+    # 获取第一帧
+    frame = cv2.imread(gthdir+'/'+'00000001.jpg')
+    # 设置初始跟踪对象的窗口大小
+    c, r, w, h = cl[0],cl[1],dl[0]-cl[0],dl[1]-cl[1]
+    track_window = (c,r,w,h)
+    # cv2.rectangle(frame,(c,r),(c+w,r+h),255,2)
+    # cv2.imshow("frame",frame)
+    # cv2.waitKey(4000)
+    bbox = track_window
+    tracker.initWorking(frame, bbox)
+
+    while(True):
+        frame = cv2.imread(gthdir + '/' + '{:0>8}.jpg'.format(id))
+        id += 1
+        if frame is None:
+            break
+        _, item = tracker.track(frame);
+        temp = np.array(item['coord'][0])
+        cv2.imshow("track", frame)
+        cv2.rectangle(frame, (temp[0][0], temp[0][1]), (temp[0][0] + temp[1][0], temp[0][1] + temp[1][1]), (255, 0, 0), 2)
+        # 画出它的位置
+        if cv2.waitKey(1) & 0xFF == ord('q'):  # 点击视频窗口，按q键退出
+            break
+    cv2.destroyAllWindows()
+
+
+

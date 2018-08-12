@@ -1,0 +1,18 @@
+if __name__ == '__main__':
+    f = open("C:/Users/LZS/Desktop/rrr.txt")  # 返回一个文件对象
+    sourceInLines = f.readlines()  # 按行读出文件内容
+    f.close()
+    new = []  # 定义一个空列表，用来存储结果
+    for x in sourceInLines[0]:
+        new.append(x)
+    new2 = []
+    i = 0
+    f1 = open('test.txt', 'w')
+    for y in new:
+        new3 = new[i:i+5]
+        if i % 5 == 0:
+            new2.append(''.join(new3)+".jpg")
+            f1.write(''.join(new3)+".jpg"+"\n")
+        i += 1
+    f1.close()
+    print(i)

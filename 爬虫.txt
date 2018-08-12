@@ -1,0 +1,69 @@
+import requests
+from bs4 import BeautifulSoup
+import bs4
+import openpyxl
+import sqlite3
+
+
+def getHTMLText(url):
+    try:
+        r = requests.get(url, timeout=30)
+        r.raise_for_status()
+        r.encoding = r.apparent_encoding
+        return r.text
+    except:
+        return ""
+
+
+def fillUnivList(ulist, html):
+    soup = BeautifulSoup(html, "html.parser")
+    #for tr in soup.find_all("div", {"class": "rank-list__item clearfix"}):
+    for tre in soup.find_all('tr'):
+        if isinstance(tre, bs4.element.Tag):
+            tds = tre.contents
+            ulist.append(tds[1].contents+tds[3].contents[0].contents+tds[4].contents)
+
+
+def saveUnivListoxlsx(ulist, num):
+    # 创建一个空的xlxs工作簿文件
+    wb = openpyxl.Workbook()
+
+    # 获取活动工作表，并重命名
+    ws1 = wb.active
+    ws1.title = "明星人气排名"
+    for i in range(num):
+        u = ulist[i]
+        ws1["A%d" % (i + 1)] = i+1
+        ws1["B%d" % (i + 1)] = u[1]
+        ws1["C%d" % (i + 1)] = u[2]
+
+    wb.save(filename="明星人气排名.xlsx")
+
+
+def hanshu(ulist, num):
+    conn = sqlite3.connect('明星人气排名.db')
+    c = conn.cursor()    # 获取连接的cursor，只有获取了cursor，我们才能进行各种操作
+    print("Opened database successfully")
+    # 创建一个数据表 writers(id,name)
+    c.execute('create table if not exists catalog (id char(8),pid varchar(8),name char(10))')
+    for i in range(num):
+        u = ulist[i]
+        sqlstring = "insert into catalog values('%d','%s','%s')" % (i+1, u[1], u[2])
+        c.execute(sqlstring)
+
+    conn.commit()
+    print("Records created successfully")
+
+    conn.close()
+
+
+def main():
+    uinfo = []
+    url = 'https://123fans.cn/rank.php?c=2'
+    html = getHTMLText(url)
+    fillUnivList(uinfo, html)
+    saveUnivListoxlsx(uinfo,100)
+    hanshu(uinfo, 100)
+
+
+main()

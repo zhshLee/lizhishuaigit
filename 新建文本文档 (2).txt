@@ -1,0 +1,30 @@
+import os
+import cv2
+import numpy as np
+import sys
+import pickle
+from optparse import OptionParser
+
+def paint(mat,x1,y1,x2,y2):
+    cv2.rectangle(mat,(int(x1),int(y1)),(int(x2),int(y2)),(0,0,255),2)
+
+if __name__ == '__main__':
+    f = open ("Csvtxt.txt")  # 返回一个文件对象
+    line = f.readline ()  # 调用文件的 readline()方法
+    id=0
+    while line:
+        id+=1
+        temp=line.split(',')
+        if (os.path.isfile (temp[0]) == False): continue
+        mat=cv2.imread(temp[0])
+        paint(mat,temp[1],temp[2],temp[3],temp[4])
+            #while(mat.shape[0]>300):
+             #   mat=cv2.pyrDown(mat)
+
+        if 8000<id<12001:
+            cv2.imwrite ('./gggimg/{}.jpg'.format (id), mat)
+            cv2.imshow("img",mat)
+            cv2.waitKey (30)
+            print(id)
+        line = f.readline()
+    f.close ()

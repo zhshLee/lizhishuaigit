@@ -1,0 +1,20 @@
+import numpy as np
+import matplotlib.pyplot as plt
+pos = []
+filename = 'data.txt'
+with open(filename, 'r') as file_to_read:
+    while True:
+        lines = file_to_read.readline()  # 整行读取数据
+        if not lines:
+            break
+            pass
+        pos.append(float(lines)) 
+x = np.arange(len(pos))
+pos = np.array(pos)
+print(pos)
+
+plt.xlim(0, 199)
+plt.ylim(0.75, 1)
+plt.plot(x,pos)
+# plt.grid(True) ##增加格点
+plt.show()

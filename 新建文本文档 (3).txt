@@ -1,0 +1,112 @@
+
+# -*- coding:utf-8 -*-
+__author__ = 'Microcosm'
+
+import cv2
+import numpy as np
+import os
+# cap = cv2.VideoCapture(0)
+# #cap = cv2.VideoCapture("E:/python/Python Project/opencv_showimage/videos/visionface.avi")
+# # 获取第一帧
+# ret,frame = cap.read()
+# print(frame.shape)
+
+
+# 遍历指定目录，显示目录下的所有文件名
+def eachFile(filepath):
+    pathDir = os.listdir(filepath)
+    out = []
+    for allDir in pathDir:
+        child = os.path.join('%s%s' % (filepath, allDir))
+        out.append(child) # .decode('gbk')是解决中文显示乱码问题
+    return out
+
+
+from functools import reduce
+def str2float(s):
+    def char2num(s):
+        return {'0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9}[s]
+    if s.find('.') == -1:
+        return int(s)
+    else:
+        n = s.index('.')
+        return reduce(lambda x,y:x*10+y,map(char2num,s[:n]+s[n+1:]))/(10**(n-1))
+
+
+def paint(mat,x1,y1,x2,y2):
+    cv2.rectangle(mat,(int(x1),int(y1)),(int(x1)+int(x2),int(y1)+int(y2)),(0,0,255),2)
+
+
+current_pos = None
+tl = None
+br = None
+# 读取groundtruth第一帧
+gths = "groundtruth"
+dataDir = 'C:\\Users\\LZS\\Desktop\\vot2016\\'
+dataType = eachFile(dataDir)
+# dataType = dataDir+'bag'
+for gthdir in dataType:
+    txtFile = '{}/{}.txt'.format(gthdir, gths)
+    f = open(txtFile,'r')  # 返回一个文件对象
+    sourceInLines = f.readlines()  # 按行读出文件内容
+    f.close()
+    new = []  # 定义一个空列表，用来存储结果
+    spl = ','.join(sourceInLines[0].split(',')).strip('\n').split(',')
+    for x in spl:
+        x = str2float(x)
+        new.append(x)
+
+    mat=cv2.imread(gthdir+'/'+'00000001.jpg')
+    # paint(mat,new[0],new[1],new[2],new[3])
+    # paint(mat,new[4],new[5],new[6],new[7])
+    # cv2.imshow("img", mat)
+    # cv2.waitKey(3000)
+
+    cl,dl = [int(new[0]),int(new[1])],[int(new[2]),int(new[3])]
+    id = 2
+    # 获取第一帧
+    frame = cv2.imread(gthdir+'/'+'00000001.jpg')
+    # 设置初始跟踪对象的窗口大小
+    c, r, w, h = cl[0],cl[1],dl[0]-cl[0],dl[1]-cl[1]
+    track_window = (c,r,w,h)
+    cv2.rectangle(frame,(c,r),(c+w,r+h),255,2)
+    cv2.imshow("frame",frame)
+    cv2.waitKey(4000)
+    # 设置感兴趣的区域
+    roi = frame[r:r+h,c:c+w]
+    # cv2.imshow("roi",roi)
+    # cv2.waitKey(0)
+    hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv_roi, np.array((0.,0.,32.)), np.array((180.,255.,255.)))
+    roi_hist = cv2.calcHist([hsv_roi],[0],None,[180],[0,180 ])
+    cv2.normalize(roi_hist,roi_hist,0,255,cv2.NORM_MINMAX)
+
+    term_crit = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.1)
+
+    while(True):
+        frame = cv2.imread(gthdir + '/' + '{:0>8}.jpg'.format(id))
+        id += 1
+        if frame is None:
+            break
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        dst = cv2.calcBackProject([hsv],[0],roi_hist,[0,180],1)
+
+        # 调用meanshift获取新的位置
+        ret,track_window = cv2.meanShift(dst,track_window,term_crit)
+
+        # 画出它的位置
+        x,y,w,h = track_window
+
+        img2 = cv2.rectangle(frame,(x,y),(x+w,y+h),255,2)
+        cv2.imshow("frame",img2)
+        cv2.waitKey(40)
+
+        # k = cv2.waitKey(60) & 0xff
+        # if k == 27:
+        #     break
+        if cv2.waitKey(1) & 0xFF == ord('q'):  # 点击视频窗口，按q键退出
+            break
+
+cv2.destroyAllWindows()
+
+

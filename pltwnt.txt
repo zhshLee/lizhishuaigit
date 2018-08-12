@@ -1,0 +1,54 @@
+from PIL import Image
+import random
+import math
+import numpy as np
+
+random.seed(10)#保证每次运行程序随机同样的数据
+def generate_voronoi_diagram(width, height, num_cells):
+    image = Image.new("RGB", (width, height))
+    putpixel = image.putpixel
+    imgx, imgy = image.size
+    nx = []
+    ny = []
+    nr = []
+    ng = []
+    nb = []
+    ###这块是做维诺图不用也行
+    for i in range(num_cells):
+        nx.append(random.randrange(imgx))
+        ny.append(random.randrange(imgy))
+        nr.append(random.randrange(256))
+        ng.append(random.randrange(256))
+        nb.append(random.randrange(256))
+    for y in range(imgy):
+        for x in range(imgx):
+            dmin = math.hypot(imgx - 1, imgy - 1)
+            j = -1
+            for i in range(num_cells):
+                d = math.hypot(nx[i] - x, ny[i] - y)
+                if d < dmin:
+                    dmin = d
+                    j = i
+            putpixel((x, y), (nr[j], ng[j], nb[j]))
+    ###这块是求最近距离
+    dismin = []#列表保存求的最近临值
+    iNum = []
+    for j in range(num_cells-1):
+        dmin = math.hypot(imgx - 1, imgy - 1)
+        for i in range(j+1,num_cells):
+            d = math.hypot(nx[j] - nx[i], ny[j] - ny[i])
+            if d < dmin:
+                dmin = d
+                m = i
+        dismin.append(dmin)
+        iNum.append([j, m])
+    dismin = np.array(dismin)#数组里存了所有最近点之间的距离值
+    distave = np.average(dismin)#求最近距离平均数
+    print(distave)#打印平均距离
+    print(dismin)#打印最近邻点的距离
+    print(iNum)#列表里存了该点离哪个点最近，例如[2，5]意思是第2个点最邻近点是第5个点
+    image.save("VoronoiDiagram.png", "PNG")#显示维诺图
+    image.show()
+
+
+generate_voronoi_diagram(500, 500, 25)#500*500像素，随机25个点
